@@ -18,7 +18,7 @@ options(stringsAsFactors = FALSE)
 ### CONSTANTS ----
 
 ## Path
-predcit_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
+predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
 response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 
@@ -29,7 +29,7 @@ predictor_files <- c("nlcd_2001_impervious_2011_edition_2014_10_10/nlcd_2001_imp
                      "UMH/evt/w001001.adf")
 
 out_dir <- "ProjectClipMask"
-out_dir_full <- file.path(predcit_dir, out_dir)
+out_dir_full <- file.path(predict_dir, out_dir)
 # Create the directory
 dir.create(out_dir_full, showWarnings = FALSE)
 
@@ -64,17 +64,16 @@ st_write(domain_shp_83,
 # Load the trnds to be used as mask
 ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
 
-
+# processing of the layers in parallel (slow processing; check gdalwrap )
 foreach(i=1:length(predictor_files)) %dopar% {
   data_file <- predictor_files[i]
   # Load the file to be masked
-  data_raster <- raster(file.path(predcit_dir, data_file))
-  # lf3_crop_rough <- crop(x = lf3, y = rough_extent) 
+  data_raster <- raster(file.path(predict_dir, data_file))
   # Reproject and clip
   data_raster_5070 <- projectRaster(data_raster, ndvi_trends, method = 'ngb')
   # mask tree only
   masked <- mask(data_raster_5070, ndvi_trends)
-  #Build ouptu name
+  # Build ouptut name
   if (file_ext(data_file) == "adf"){
     parts <- str_split(data_file,"/")[[1]]
     file_name <- paste(parts[1],parts[2],sep="_")
