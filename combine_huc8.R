@@ -49,8 +49,10 @@ umh_huc8_all_epsg_5070 <- spTransform(umh_huc8_all, crs(ndvi_trends))
 
 # rasterize
 ndvi_trends <- raster(file.path(response_dir, NDVI_trends_file))
-huc8_rast <- rasterize(umh_huc8_all_epsg_5070, ndvi_trends, filename=file.path(HUC8_dir_full, "umh_huc8.tif"))
+huc8_rast <- rasterize(umh_huc8_all_epsg_5070, ndvi_trends, filename=file.path(HUC8_dir_full, "umh_huc8.tif"), overwrite=TRUE)
 
-
-
-
+# rclm <-matrix(data = NA, nrow = 8, ncol = 3, byrow = FALSE,
+#        dimnames = NULL)
+# rclm[,1]<- 1:8
+# rclm[,2]<- 1:8
+# rclm[,3]<- 1:8umh_huc8_all_epsg_5070@data$HUC8
