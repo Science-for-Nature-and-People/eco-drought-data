@@ -8,12 +8,13 @@ library(gdalUtils)
 predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
 response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
+def_sum_dir <- file.path(predict_dir,"defSum")
 
 out_dir <- "ProjectClipMask"
 out_dir_full <- file.path(predict_dir, out_dir)
 
 # read the raster and stack
-def_sum_files <- list.files(path = predict_dir, pattern = "def_sum", full.names = TRUE)
+def_sum_files <- list.files(path = def_sum_dir, pattern = "def_sum", full.names = TRUE)
 def_stack8009 <- stack(def_sum_files)
 names(def_stack8009)
 
@@ -30,6 +31,7 @@ def_anomalies0005 <- as.integer(def_drought0005 - def_climatology)
 # Reproject
 data_raster_5070_epsg5070 <- projectRaster(def_anomalies0005, ndvi_trends, method="ngb")
 
+## GDAL approch for reprojection
 # data_raster_5070_epsg5070 <- gdalwarp(srcfile = def_anomalies0005,
 #          dstfile = file.path(out_dir_full,"tmp.tif"),
 #          s_srs = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0 ",
@@ -43,12 +45,13 @@ data_raster_5070_epsg5070 <- projectRaster(def_anomalies0005, ndvi_trends, metho
 #          overwrite=TRUE,
 #          verbose=TRUE
 # )
+
 # fix the names
 names(data_raster_5070_epsg5070) <- names(def_drought0005)
 
 # write the output
 writeRaster(data_raster_5070_epsg5070, 
-            filename=file.path(out_dir_full, paste0(names(data_raster_5070_epsg5070),"_anom_epsg5070_masked.tif")), 
+            filename=file.path(out_dir_full, paste0(names(data_raster_5070_epsg5070),"_anom_epsg5070_clip.tif")), 
             bylayer=TRUE,
             format="GTiff",
             options="COMPRESS=LZW",
