@@ -39,7 +39,7 @@ Domain_shp_file <- file.path(domain_dir,"UMH_Basins_outside_boundary_shapefile/U
 
 ## Raster
 # Response
-NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm1.tif"
+NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 # lf3_file <- "lf3_30T_GNLCC/lf3_30T_GNLCC.tif"
 
 ## CRS
