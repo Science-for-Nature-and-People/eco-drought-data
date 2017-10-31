@@ -13,20 +13,31 @@ def_sum_dir <- file.path(predict_dir,"defSum")
 out_dir <- "ProjectClipMask"
 out_dir_full <- file.path(predict_dir, out_dir)
 
+NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
+ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
+
+
 # read the raster and stack
-def_sum_files <- list.files(path = def_sum_dir, pattern = "def_sum", full.names = TRUE)
+def_sum_files <- list.files(path = def_sum_dir, pattern = "*.tif$", full.names = TRUE)
 def_stack8009 <- stack(def_sum_files)
 names(def_stack8009)
 
 # Compute the climatoloty
-def_climatology <- as.integer(mean(def_stack8009, na.rm = TRUE))
+def_climatology <- mean(def_stack8009, na.rm = TRUE)
+def_climatology[] <- as.integer(def_climatology[])
 
+# Reproject
+# projectRaster(def_climatology, ndvi_trends, method="ngb", 
+#               filename=file.path(out_dir_full, "def_sum_climatology_epsg5070_clip.tif"),
+#               format="GTiff",
+#               options="COMPRESS=LZW",
+#               overwrite=TRUE)
 
 # Compute the anomalies
 def_drought0005 <- subset(def_stack8009, 21:26)
 names(def_drought0005)
 
-def_anomalies0005 <- as.integer(def_drought0005 - def_climatology)
+def_anomalies0005 <- def_drought0005 - def_climatology
 
 # Reproject
 data_raster_5070_epsg5070 <- projectRaster(def_anomalies0005, ndvi_trends, method="ngb")
