@@ -6,12 +6,13 @@ library(ggplot2)
 library(raster)
 library(ncdf4)
 library(RColorBrewer)
+library(data.table)
 
-predcit_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
+predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain/"
 
 # Predicors
-swe_file <- "shelley.swe"
+swe_file <- "shelley2.swe"
 soil_file <- "shelley.soil"
 
 
@@ -31,16 +32,17 @@ ggplot() +
 
 
 ## Predicors ----
-swe_file <- "shelley.swe"
-soil_file <- "shelley.soil"
+swe_file <- "shelley2.swe"
+soil_file <- "shelley2.soil"
 
 # Read Predictor data
-swe_data <- read_table(file.path(predcit_dir,swe_file),col_names = TRUE)
-soil_data <- read_table(file.path(predcit_dir,soil_file),col_names = TRUE)
+swe_data <- as.data.table(read_table(file.path(predict_dir,swe_file),col_names = TRUE))
+soil_data <- as.data.table(read_table(file.path(predict_dir,soil_file),col_names = TRUE))
 
 
 # Read the netcf tmax
-ncin <- nc_open(file.path(predcit_dir,"tmax_anomalies_2000_MissouriHeadwaters_JJA.nc"))
+ncin <- nc_open(file.path(predict_dir,"tmax_anomalies_2000_MissouriHeadwaters_JJA.nc"))
+ncin2 <- brick(file.path(predict_dir,"tmax_anomalies_2000_MissouriHeadwaters_JJA.nc"), "tmax")
 # get the lat/long
 lon <- ncvar_get(ncin, varid = "lon")
 lat <- ncvar_get(ncin, varid = "lat")
@@ -50,7 +52,7 @@ tmp_array <- ncvar_get(ncin,"tmax")
 image(lon,lat,tmp_array, col=rev(brewer.pal(10,"RdBu")))
 
 # Read the netcf tmin
-ncin <- nc_open(file.path(predcit_dir,"tmin_anomalies_2000_MissouriHeadwaters_DJF.nc"))
+ncin <- nc_open(file.path(predict_dir,"tmin_anomalies_2000_MissouriHeadwaters_DJF.nc"))
 # get the lat/long
 lon <- ncvar_get(ncin, varid = "lon")
 lat <- ncvar_get(ncin, varid = "lat")
@@ -61,7 +63,7 @@ image(lon,lat,tmp_array, col=rev(brewer.pal(10,"RdBu")))
 
 
 # Read the netcf precip
-ncin <- raster(file.path(predcit_dir,"Precip_AnnualAnomalies2000.nc"))
+ncin <- raster(file.path(predict_dir,"Precip_AnnualAnomalies2000.nc"))
 # # get the lat/long
 # lon <- ncvar_get(ncin, varid = "lon")
 # lat <- ncvar_get(ncin, varid = "lat")
@@ -72,7 +74,7 @@ image(ncin, col=rev(brewer.pal(10,"RdBu")))
 
 
 # Read the netcf EDDI (evoparitve demand drought index)
-ncin <- raster(file.path(predcit_dir,"EDDI_MJJAS_2000.nc"))
+ncin <- raster(file.path(predict_dir,"EDDI_MJJAS_2000.nc"))
 # get the lat/long
 # lon <- ncvar_get(ncin, varid = "lon")
 # lat <- ncvar_get(ncin, varid = "lat")
@@ -83,6 +85,6 @@ image(ncin, col=rev(brewer.pal(10,"RdBu")))
 
 # Raster climatic water deficit
 
-def_sum <- raster(file.path(predcit_dir, "def_sum_1980.tif"))
+def_sum <- raster(file.path(predict_dir, "def_sum_1980.tif"))
 image(def_sum)
 def_sum
