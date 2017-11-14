@@ -1,7 +1,7 @@
 library(stringr)
 library(raster)
 library(data.table)
-
+library(rgdal)
 
 # Threshold
 
@@ -51,9 +51,11 @@ drought_mask[drought_mask > threshold_mask] <-NA
 no_trend_mask <- response_combined
 no_trend_mask[no_trend_mask < -0.000000001]  <-NA 
 no_trend_mask[no_trend_mask > 0.000000001]  <-NA 
-
-image(no_trend_mask)
+# image(no_trend_mask)
 # sum(!is.na(no_trend_mask[]))
+
+
+
 
 
 # Initialize the data.table
@@ -67,6 +69,16 @@ DTmask[, mask_notrend:=!is.na(getValues(no_trend_mask))]
 keys_id1 <- DTmask[mask_drought==TRUE, pixel_id]
 keys_id2 <- DTmask[mask_notrend==TRUE, pixel_id]
 keys_id <- sort(c(keys_id1,keys_id2))
+
+# Create a raster mask
+raster_mask <- response_combined
+raster_mask[] <- NA
+raster_mask[keys_id] <- keys_id
+image(raster_mask)
+
+# # Create a shapefile for the pixel used in the analysis
+# points_mask <- rasterToPoints(raster_mask, spatial=TRUE)
+# writeOGR(points_mask, dsn=input_dir_full, layer="point_pixel_used", driver="ESRI Shapefile")
 
 # Initialize the dataframe
 DT <- data.table(pixel_id = keys_id)
@@ -97,16 +109,18 @@ for(raster_file in input_rasters_all){
   DT[, (var_name):=r[keys_id]]
 }
 
-# Write the main table
-data.table::fwrite(DT, file.path(input_dir_full,"model_inputs.csv"))
+# REmove potential NAs
 
-# Fix the header
+DT_noNA <- na.omit(DT)
+
+# Write the main table
+data.table::fwrite(DT_noNA, file.path(input_dir_full,"model_inputs.csv"))
 
 
 
 # Split the table by HUC
 
-list_huc_data <- split(DT, by=c("huc8.umh"))
+list_huc_data <- split(DT_noNA, by=c("huc8.umh"))
 
 list_huc_data[["NA"]] <- NULL
 
