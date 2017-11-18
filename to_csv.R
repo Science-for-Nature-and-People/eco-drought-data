@@ -5,6 +5,7 @@ library(RColorBrewer)
 
 rasterOptions(maxmemory = 1e10)
 
+### CONSTANTS -----
 # Number of pixels
 nb_pix <- 67642244
 
@@ -14,10 +15,9 @@ domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
 response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 
 # Create the path to the data
-input_dir <- "ProjectClipMask"
-input_dir_full <- file.path(predict_dir,input_dir)
+input_dir_full <- file.path(predict_dir,"ProjectClipMask")
 
-# List all the cliped datasets
+# List all the clipped datasets
 input_rasters <- list.files(path = input_dir_full, pattern = "*.tif", full.names = TRUE)
 
 
@@ -29,7 +29,9 @@ NDVI_R2_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlr2R
 ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
 NDVI_R2 <- raster(file.path(response_dir,NDVI_R2_file))
 
-## polts 
+
+### MAIN -----
+## Plots
 #R2
 hist(NDVI_R2[])
 cuts=c(0.6,0.75,0.8)
