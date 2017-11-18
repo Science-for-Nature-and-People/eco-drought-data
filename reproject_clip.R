@@ -19,12 +19,12 @@ response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 
 ## Raster to be processed
 raster_files <- read.csv(file.path(predict_dir,"input_files.csv"), header = FALSE)
-raster_files <- raster_files[-c(13:24),] #tmp because I do not know the projection of it
+#raster_files <- raster_files[-c(13:24),] #tmp because I do not know the projection of it
 custom_files <- c("nlcd_2001_impervious_2011_edition_2014_10_10/nlcd_2001_impervious_2011_edition_2014_10_10.img",
                      "nlcd2001_canopy_mosaic_1-29-08/nlcd_canopy_mosaic_1-29-08.img",
                      "UMH/evh/w001001.adf",
                      "UMH/evt/w001001.adf")
-predictor_files <- c(raster_files$V1, custom_files)
+predictor_files <- c(raster_files[-c(13:24),], custom_files)
 
 ## Output directory
 out_dir <- "ProjectClipMask"
