@@ -18,7 +18,7 @@ response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 input_dir <- "ProjectClipMask"
 input_dir_full <- file.path(predict_dir,input_dir)
 
-# List all the cliped datasets
+# List all the clipped datasets
 input_rasters <- list.files(path = input_dir_full, pattern = "*_clip.tif", full.names = TRUE)
 NDVI_trends_file <-"UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 NDVI_trends_file_full <- file.path(response_dir, NDVI_trends_file)
@@ -84,7 +84,7 @@ image(raster_mask)
 DT <- data.table(pixel_id = keys_id)
 setkey(DT, pixel_id)
 
-# Loop trhough the variable
+# Loop through the variable
 for(raster_file in input_rasters_all){
   # Read the raster in
   r <- raster(raster_file)
@@ -109,7 +109,7 @@ for(raster_file in input_rasters_all){
   DT[, (var_name):=r[keys_id]]
 }
 
-# REmove potential NAs
+# Remove potential NAs
 
 DT_noNA <- na.omit(DT)
 
