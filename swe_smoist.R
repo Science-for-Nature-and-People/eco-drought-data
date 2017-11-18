@@ -1,34 +1,35 @@
 library(readr)
-library(data.table)
-library(sf)
+library(data.table) # as.data.table()
+library(sf) # st_read
 library(dplyr)
 library(sp)
-
 devtools::install_github("ecohealthalliance/fasterize")
 library(fasterize)
+library(raster) # raster()
 
 #### CONSTANT ----
 
 year_start <- 2001
 year_end <- 2005
 
+## Path
 predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain/"
+
 ## Output directory
 out_dir <- "ProjectClipMask"
 out_dir_full <- file.path(predict_dir, out_dir)
 
-# Predicors
+# Predictors
 swe_file <- "shelley2.swe"
 soil_file <- "shelley2.soil"
 
-
+# Response
 NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
 
-#hrus shapefile
+# hrus shapefile
 hrus_cleaned <- file.path(predict_dir,"hrus_10U_umh_c2.shp")
-hrus
 
 #### FUNCTION ----
 
@@ -55,7 +56,6 @@ soil_moist_year <- function(y,m){
   return(smoisty)
 }
 
-
 #### MAIN ----
 
 # Read the shapefile in
@@ -63,8 +63,7 @@ hrus <- st_read(hrus_cleaned)
 
 # Read  data
 swe_data <- as.data.table(read_table(file.path(predict_dir,swe_file),col_names = TRUE))
-
-
+soil_data <- as.data.table(read_table(file.path(predict_dir,soil_file),col_names = TRUE))
 
 ## Snow ----
 # Compute the snow year
@@ -83,18 +82,20 @@ head(snow[,1:10])
 # Remove the year and month
 snow[, c("YEAR","MTH"):=NULL]
 
-# transpose  the table to have the Hrus as row (For join)
+# Transpose the table to have the hrus as row (For join)
 snowT <- dcast(melt(snow, id.vars = "snow_year"), variable ~ snow_year)
 
 # Drop 2000 as the year is incomplete
 snowT[, "2000":=NULL]
-# rename
+
+# Rename
 names(snowT)[1] <- "hru_id"
+
 # Remove factors
 snowT[, hru_id:=as.numeric(hru_id)]
 
-# join
-hrus_year <- merge(hrus, snowT)
+# Join
+hrus_year <- merge(hrus, snowT) # merge from which library? base, sp, raster, data.table... This can be an issue down the line
 
 for (the_year in year_start:year_end) {
   r <- fasterize(hrus_year, ndvi_trends, field = paste0("X", the_year))
@@ -106,11 +107,7 @@ for (the_year in year_start:year_end) {
             overwrite=TRUE)
 }
 
-
-## soil moisture ----
-
-soil_data <- as.data.table(read_table(file.path(predict_dir,soil_file),col_names = TRUE))
-
+## Soil moisture ----
 # Compute the soil year
 soil_data[ , smoist_year:=soil_moist_year(YEAR, MTH)]
 # Check
@@ -127,15 +124,19 @@ head(soilm[,1:10])
 # Remove the year and month
 soilm[, c("YEAR","MTH"):=NULL]
 
-# transpose  the table to have the Hrus as row (For join)
+# Transpose the table to have the Hrus as row (For join)
 soilmT <- dcast(melt(soilm, id.vars = "smoist_year"), variable ~ smoist_year)
 
 # Drop 2000 as the year is incomplete
 # soilmT[, c("2000"):=NULL]
+
+# Rename
 names(soilmT)[1] <- "hru_id"
+
+# Remove factors
 soilmT[, hru_id:=as.numeric(hru_id)]
 
-# join
+# Join
 hrus_year_sm <- merge(hrus, soilmT)
 
 for (the_year in 2000:2005) {
