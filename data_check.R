@@ -68,7 +68,7 @@ for (i in 4:length(csv_file)) {
   ## Compare shapedata csv values and raster points to see if they match
   ## Current value in point shapefile should match the pixel id in the csv
   if (all.equal(joined[, pattern_match], joined[, "raster_data"])) {
-    all_equal_files <- c(all_equal_files, pattern_match)
+    all_equal_files <- c(all_equal_files, pattern_match) # Put file pattern name 'pattern_match' in a list
   }
 }
 
