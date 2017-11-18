@@ -4,25 +4,24 @@ library(gdalUtils)
 
 ## CONSTANTS ----
 
-# Main directories
-predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
-domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
+## Path
+predict_dir  <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
+domain_dir   <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
 response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
-def_sum_dir <- file.path(predict_dir,"defSum")
+def_sum_dir  <- file.path(predict_dir,"defSum")
 
-out_dir <- "ProjectClipMask"
-out_dir_full <- file.path(predict_dir, out_dir)
+## Output
+out_dir <- file.path(predict_dir, "ProjectClipMask")
 
 NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
 
-
-# read the raster and stack
+# Read the raster and stack
 def_sum_files <- list.files(path = def_sum_dir, pattern = "*.tif$", full.names = TRUE)
 def_stack8009 <- stack(def_sum_files)
 names(def_stack8009)
 
-# Compute the climatoloty
+# Compute the climatology
 def_climatology <- mean(def_stack8009, na.rm = TRUE)
 def_climatology[] <- as.integer(def_climatology[])
 
@@ -57,12 +56,12 @@ data_raster_5070_epsg5070 <- projectRaster(def_anomalies0005, ndvi_trends, metho
 #          verbose=TRUE
 # )
 
-# fix the names
+# Fix the names
 names(data_raster_5070_epsg5070) <- names(def_drought0005)
 
-# write the output
+# Write the output
 writeRaster(data_raster_5070_epsg5070, 
-            filename=file.path(out_dir_full, paste0(names(data_raster_5070_epsg5070),"_anom_epsg5070_clip.tif")), 
+            filename=file.path(out_dir, paste0(names(data_raster_5070_epsg5070),"_anom_epsg5070_clip.tif")), 
             bylayer=TRUE,
             format="GTiff",
             options="COMPRESS=LZW",
