@@ -11,7 +11,7 @@ response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 # Full path to HUC8 shapefiles
 HUC8_dir_full <- file.path(domain_dir,"UMH_HUC8")
 
-# raster grid to match
+# Raster grid to match
 NDVI_trends_file <- "UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 
 # Projection
@@ -47,10 +47,10 @@ umh_huc8_all <- readOGR(HUC8_dir_full, "umh_huc8_all")
 umh_huc8_all_epsg_5070 <- spTransform(umh_huc8_all, crs(ndvi_trends))
 
 
-# rasterize
+# Rasterize
 ndvi_trends <- raster(file.path(response_dir, NDVI_trends_file))
-huc8_rast <- rasterize(umh_huc8_all_epsg_5070, ndvi_trends,
-                       filename=file.path(HUC8_dir_full, "umh_huc8.tif"), overwrite=TRUE)
+huc8_rast   <- rasterize(umh_huc8_all_epsg_5070, ndvi_trends,
+                         filename=file.path(HUC8_dir_full, "umh_huc8.tif"), overwrite=TRUE)
 
 # rclm <-matrix(data = NA, nrow = 8, ncol = 3, byrow = FALSE,
 #        dimnames = NULL)
