@@ -21,10 +21,10 @@ huc8_1 <- st_read(file.path(domain_dir, huc8_file))
 
 # Plot
 ggplot() +
-  geom_sf(data=umh, aes(fill = HUC8)) + # Error: could not find function "geom_sf
+  geom_sf(data=umh, aes(fill = HUC8)) + # Error: could not find function "geom_sf"
   geom_sf(data=huc8_1, aes(fill = HUC8)) 
 
-## Predicors ----
+## Predictors ----
 
 swe_file  <- "shelley2.swe"
 soil_file <- "shelley2.soil"
