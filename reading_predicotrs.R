@@ -48,6 +48,6 @@ view_netcf <- function(netcf, tmp_variable) {
 }
 
 # Raster climatic water deficit
-def_sum <- raster(file.path(predict_dir, "def_sum_1980.tif")) # File does not exist
+def_sum <- raster(file.path(predict_dir, "defSum", "def_sum_1980.tif")) # File does not exist
 image(def_sum)
 def_sum
