@@ -18,7 +18,7 @@ response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 input_dir_full <- file.path(predict_dir,"ProjectClipMask")
 
 # List all the clipped datasets
-input_rasters <- list.files(path = input_dir_full, pattern = "*.tif", full.names = TRUE)
+input_rasters <- list.files(path = input_dir_full, pattern = ".tif$", full.names = TRUE, )
 
 
 ## Create a list of ids with values eg tree area
@@ -59,6 +59,7 @@ DT <- data.table(pixel_id = keys_id)
 setkey(DT, pixel_id)
 
 for(raster_file in input_rasters){
+  print(raster_file)
   # Read the raster in
   r <- raster(raster_file)
   # Get the variable name
@@ -69,4 +70,4 @@ for(raster_file in input_rasters){
   DT[, (var_name):=r[keys_id]]
 }
 
-data.table::fwrite(DT, file.path(input_dir_full,"model_inputs.csv"))
+data.table::fwrite(DT, file.path(input_dir_full,"model_inputs_201807.csv"))
