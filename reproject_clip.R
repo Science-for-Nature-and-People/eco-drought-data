@@ -61,7 +61,7 @@ st_bbox(domain_shp)
 #          driver = "ESRI Shapefile", delete_layer = TRUE
 #          )
 
-# Load the trnds to be used as mask
+# Load the trends to be used as mask
 ndvi_trends <- raster(file.path(response_dir,NDVI_trends_file))
 
 # processing of the layers in parallel (slow processing; check gdalwrap )
