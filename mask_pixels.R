@@ -19,7 +19,7 @@ input_dir <- "ProjectClipMask"
 input_dir_full <- file.path(predict_dir,input_dir)
 
 # List all the clipped datasets
-input_rasters <- list.files(path = input_dir_full, pattern = "*_clip.tif", full.names = TRUE)
+input_rasters <- list.files(path = input_dir_full, pattern = "*_clip.tif$", full.names = TRUE)
 NDVI_trends_file <-"UMHbasins_aYs_2005_2006_jDs_200_250_epoch5_NDVI_landsat_TDDlm2.tif"
 NDVI_trends_file_full <- file.path(response_dir, NDVI_trends_file)
 huc8_file <- "huc8_umh.tif"
@@ -110,8 +110,9 @@ for(raster_file in input_rasters_all){
 }
 
 # Remove potential NAs
-
-DT_noNA <- na.omit(DT)
+# removing Tehaobald forest because its linear nature created too many NAs
+att_to_check <- setdiff(names(DT), "Theobald.forest") 
+DT_noNA <- na.omit(DT, cols=att_to_check)
 
 # Write the main table
 data.table::fwrite(DT_noNA, file.path(input_dir_full,"model_inputs.csv"))
@@ -120,12 +121,12 @@ data.table::fwrite(DT_noNA, file.path(input_dir_full,"model_inputs.csv"))
 
 # Split the table by HUC
 
-list_huc_data <- split(DT_noNA, by=c("huc8.umh"))
+# list_huc_data <- split(DT_noNA, by=c("huc8.umh"))
+# 
+# list_huc_data[["NA"]] <- NULL
 
-list_huc_data[["NA"]] <- NULL
-
-lapply(1:length(list_huc_data), function(i) write.csv(list_huc_data[[i]], 
-                                                file = file.path(input_dir_full, paste0("HUC8_",names(list_huc_data[i]), ".csv")),
-                                                row.names = FALSE))
+# lapply(1:length(list_huc_data), function(i) write.csv(list_huc_data[[i]], 
+#                                                 file = file.path(input_dir_full, paste0("HUC8_",names(list_huc_data[i]), ".csv")),
+#                                                 row.names = FALSE))
 
 
