@@ -3,7 +3,7 @@ library(data.table) # as.data.table()
 library(sf) # st_read
 library(dplyr)
 library(sp)
-devtools::install_github("ecohealthalliance/fasterize")
+# devtools::install_github("ecohealthalliance/fasterize")
 library(fasterize)
 library(raster) # raster()
 
