@@ -1,3 +1,8 @@
+## Specific processing to create raster for SWE and soil moisture
+# Used water year accumulation (oct to sept+1) for swe
+# Used April to Sept accumulation (sum) for soil moisture
+
+
 library(readr)
 library(data.table) # as.data.table()
 library(sf) # st_read
@@ -15,6 +20,7 @@ year_end <- 2005
 ## Path
 predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain/"
+response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 
 ## Output directory
 out_dir <- "ProjectClipMask"
@@ -45,7 +51,7 @@ snow_year <- function(y,m){
   return(snowy)
 }
 
-#'Return a string giving the water year for a date
+#'Return a string giving the soil moisture over the summer (April to Sept)
 #'Source: https://r-forge.r-project.org/scm/viewvc.php/pkg/R/water.year.R?view=markup&revision=33&root=iha
 #'Returns a number specifying the water year  for a date.
 #'@param x a date-time object which can be handled by lubridate
@@ -76,6 +82,7 @@ swe_data <- na.omit(swe_data, cols="snow_year")
 
 # Do the aggregation
 snow <- swe_data[, lapply(.SD, sum(., na.rm = TRUE)), by = "snow_year"]
+
 # Check
 head(snow[,1:10])
 
