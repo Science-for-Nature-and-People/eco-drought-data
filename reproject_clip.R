@@ -1,3 +1,5 @@
+# Clipping, Reprojecting and aligning raster grid to the response NDVI trend
+
 library(tools)
 library(foreach)
 library(raster)

@@ -12,6 +12,7 @@ Data log: https://docs.google.com/spreadsheets/d/14JEBFiIr3187JOkGmqrlQeCzsu1iAi
 
 ## The main scripts are:
 
+- `swe_moist.R`: preprocessing for soil moisture and swe
 - `reproject_clip.R`: to be used to reproject and resample the predictor rasters to match the response. If the data are not in a raster format or need preprocessing, you will need to first use the more file specific scripts.
 - `mask_pixels.R`: to be used to extract pixels with strong response signal and create the csv files per HUC
 

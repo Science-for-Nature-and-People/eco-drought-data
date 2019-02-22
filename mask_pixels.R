@@ -3,13 +3,14 @@ library(raster)
 library(data.table)
 library(rgdal)
 
+### CONSTANT ----
 # Threshold
-
 threshold_mask <- -0.036
+
 # Number of pixels
 nb_pix <- 67642244
 
-## Path
+### Path ----
 predict_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Predictors"
 domain_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Domain"
 response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
@@ -17,6 +18,9 @@ response_dir <- "/home/shares/ecodrought/VulnerabilityAnalysis/Response"
 # Create the path to the data
 input_dir <- "ProjectClipMask"
 input_dir_full <- file.path(predict_dir,input_dir)
+
+
+### INPUT FILES ----
 
 # List all the clipped datasets
 input_rasters <- list.files(path = input_dir_full, pattern = "*_clip.tif$", full.names = TRUE)
@@ -40,7 +44,11 @@ response_combined <- raster(file.path(response_dir, response_file))
 # cuts_trends <- c(-0.05,-0.036) 
 # plot(response_combined, breaks=cuts_trends, col = pal(3))
 
+
+### MAIN ----
+
 ## Create the mask for the threshold
+
 # drought pixels
 drought_mask <- response_combined
 drought_mask[drought_mask > threshold_mask] <-NA 
@@ -55,16 +63,16 @@ no_trend_mask[no_trend_mask > 0.000000001]  <-NA
 # sum(!is.na(no_trend_mask[]))
 
 
-
-
-
 # Initialize the data.table
 DTmask <- data.table(pixel_id = 1:nb_pix)
+
 # Set the keys
 setkey(DTmask,pixel_id)
+
 # Create a binary column where pixel with value are TRUE
 DTmask[, mask_drought:=!is.na(getValues(drought_mask))]
 DTmask[, mask_notrend:=!is.na(getValues(no_trend_mask))]
+
 # List the values
 keys_id1 <- DTmask[mask_drought==TRUE, pixel_id]
 keys_id2 <- DTmask[mask_notrend==TRUE, pixel_id]
