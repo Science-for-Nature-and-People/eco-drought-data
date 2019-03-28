@@ -5,7 +5,7 @@ library(rgdal)
 
 ### CONSTANT ----
 # Threshold
-threshold_mask <- -0.036
+threshold_mask <- -0.036 # How was this threshold set?
 
 # Number of pixels
 nb_pix <- 67642244
@@ -31,7 +31,7 @@ huc8_file_full <- file.path(domain_dir,"UMH_HUC8", huc8_file)
 input_rasters_all <- c(huc8_file_full, NDVI_trends_file_full, input_rasters)
 
 # load the raster created by multiplying the trend by the R2
-response_file <- "NDVI_R2lm2.tif"
+response_file <- "NDVI_R2lm2.tif"      #JB: look how this file was created
 response_combined <- raster(file.path(response_dir, response_file))
 
 # Look at the histogram
@@ -42,7 +42,7 @@ response_combined <- raster(file.path(response_dir, response_file))
 # cuts_trends <- c(-0.05,-0.025,-0.01,0,0.01,0.025,0.05) 
 # plot(response_combined, breaks=cuts_trends, col = pal(7))
 # cuts_trends <- c(-0.05,-0.036) 
-# plot(response_combined, breaks=cuts_trends, col = pal(3))
+# plot(response_combined, breaks=cuts_trends, col = pal(3)) ## JB pal error
 
 
 ### MAIN ----
