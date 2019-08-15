@@ -20,8 +20,11 @@ library(googledrive)
 #############################################
 #https://www.earthdatascience.org/eddi/index.html
 #date and timescale are examples. are easily translated to a function/loop
-eddi_data <- eddi::get_eddi(date = '2018-11-29', timescale = '1 month')
+eddi_data <- eddi::get_eddi(date = '2018-01-01', timescale = '1 month')
 
+# # Format the name of the layer to just contain the type (EDDI) and date. This will be the base for the saved filename
+# # This is a bit overly complicated because eddi data returns single layer rasterstack, instead of a raster layer
+# eddi_data@layers[[1]]@data@names <- stringr::str_replace(eddi_data@layers[[1]]@data@names, '_\\w+mn', '')
 
 #https://esrl.noaa.gov/psd/leri/#archive
   # try to read direct from ftp
@@ -29,14 +32,21 @@ url <- 'ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/2019/'
 filenames <- RCurl::getURL(url, ftp.use.epsv = FALSE, dirlistonly = TRUE) %>%
   stringr::str_split('\n') %>% unlist
 
-#[1] is just an example. can easily generalize this to a loop if we want all files, but very expensive
+# Set the name of the layer to be the filename (minus the .nc)
+new_name <- filenames[1] %>% stringr::str_replace('.nc', '')
+
+
+#[1] is just an example. can easily generalize this to a loop if we want all files, but might take a while (maybe foreach loop like reprject_clip?)
 #downloads all the files into a temp location
 leri_filepath <- paste(tempdir(), filenames[1], sep = '/')
 leri_filepath <- file.path(tempdir(), filenames[1])
 utils::download.file(paste0(url, filenames[1]), destfile = leri_filepath)
 
+# We use raster stack to get it in same format as the eddi data
 leri_data <- raster::stack(leri_filepath)
 #file.remove(leri_filepath)
+leri_data@layers[[1]]@data@names <- new_name
+
 
 #https://climatedataguide.ucar.edu/climate-data/standardized-precipitation-index-spi
 #???
@@ -71,26 +81,35 @@ domain_shapefile <- sf::st_read(domain_shapefile_path) %>%
 
 #############################################
 
-# Step 1. Put the rasters in a list and convert them to a consistent coordinate system (EPSG 5070)
+# Step 1. Put the rasters in a list and convert them to a consistent coordinate system (EPSG 5070) ======================
+  # note: we might need to split this up to do eddi data separately from leri
 
 stack_list <- list(eddi_data, leri_data)
+
+###########TOODO::: projectRaster is losingt the name, so we gotta figure this out. maybe do eddi and leri separate?
 stack_list_epsg <- purrr::map(stack_list, ~raster::projectRaster(.x, crs = "+init=epsg:5070"))
 
-# Step 2. Crop them all to the boundary shape via masking
+# Step 2. Crop them all to the boundary shape via masking ================================================================
 
 stack_list_cropped <- purrr::map(stack_list_epsg, ~raster::mask(.x, domain_shapefile) %>%
-                                  raster::crop(raster::extent(domain_shapefile)))
+                                  raster::crop(raster::extent(domain_shapefile))
+                                 )
 
 
-# Step 3. Pick the one with finest resolution (this is our template, which we will use to match resolution/extent)
+# Step 3. Pick the one with finest resolution (this is our template, which we will use to match resolution/extent) ========
 
 pixel_area_list <- purrr::map(stack_list_cropped, ~ prod(raster::res(.x)))
 template <- stack_list_cropped[[which.min(pixel_area_list)]]
 
 
-# Step 4. Match resolution/match extent even closer between the stacks and the template
+# Step 4. Match resolution/match extent even closer between the stacks and the template ====================================
 
-stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, template))
+stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, template,
+                                                                       filename = paste(type, date, "EPSG5070_cropped.tif", sep = '_'),
+                                                                       format = "GTiff", overwrite=TRUE, options="COMPRESS=LZW")
+                                 )
+
+
 
 
 
@@ -112,23 +131,23 @@ stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, templ
 #' @param domain_shape should be a shapefile that specifies the domain (must have consistent crs)
 #' @param resolution should be the the minimum resolution of all the stacks (a 2 element numeric vector for x,y)
 #' @param espg should be the espg code to use as the crs (4 numbers)
-project_mask_crop_save <- function(stack, domain_shape, espg, resolution){
-  #rasters need espg in a different format than shapefiles
-  espg_crs <- paste0("+init=espg:",espg)
-  projected_stack <-  raster::projectRaster(stack, crs = espg_crs, res = resolution)
-  
-  #create a mask (eg create a new raster by overlaying the eddi_data values onto the domain shapefile)
-  mask <- raster::mask(projected_stack, domain_shape)
-  #now crop this mask so that it fits into the box that we define earlier
-  cropped <- raster::crop(mask, raster::extent(domain_shape))
-  
-  raster::writeRaster()
-}
-
-#test
-leri_cropped <- project_mask_crop_save(leri_data, domain_shapefile, 5070, resolution)
-
-raster::plot(leri_cropped)
+# project_mask_crop_save <- function(stack, domain_shape, espg, resolution){
+#   #rasters need espg in a different format than shapefiles
+#   espg_crs <- paste0("+init=espg:",espg)
+#   projected_stack <-  raster::projectRaster(stack, crs = espg_crs, res = resolution)
+#   
+#   #create a mask (eg create a new raster by overlaying the eddi_data values onto the domain shapefile)
+#   mask <- raster::mask(projected_stack, domain_shape)
+#   #now crop this mask so that it fits into the box that we define earlier
+#   cropped <- raster::crop(mask, raster::extent(domain_shape))
+#   
+#   raster::writeRaster()
+# }
+# 
+# #test
+# leri_cropped <- project_mask_crop_save(leri_data, domain_shapefile, 5070, resolution)
+# 
+# raster::plot(leri_cropped)
 
 
 
