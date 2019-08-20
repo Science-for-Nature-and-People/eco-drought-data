@@ -20,7 +20,9 @@ library(googledrive)
 #############################################
 #https://www.earthdatascience.org/eddi/index.html
 #date and timescale are examples. are easily translated to a function/loop
-eddi_data <- eddi::get_eddi(date = '2018-01-01', timescale = '1 month')
+eddi_data <- eddi::get_eddi(date = '2018-01-01', timescale = '1 month') 
+#new_eddi_name <- paste(eddi_data@layers[[1]]@data@names, "epsg5070_crop.tif", sep = "_")
+
 
 # # Format the name of the layer to just contain the type (EDDI) and date. This will be the base for the saved filename
 # # This is a bit overly complicated because eddi data returns single layer rasterstack, instead of a raster layer
@@ -30,23 +32,31 @@ eddi_data <- eddi::get_eddi(date = '2018-01-01', timescale = '1 month')
   # try to read direct from ftp
 url <- 'ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/2019/'
 filenames <- RCurl::getURL(url, ftp.use.epsv = FALSE, dirlistonly = TRUE) %>%
-  stringr::str_split('\n') %>% unlist
+  stringr::str_split('\n') %>% 
+  unlist()
 
-# Set the name of the layer to be the filename (minus the .nc)
-new_name <- filenames[1] %>% stringr::str_replace('.nc', '')
 
+
+
+### This chunk can be put into a loop? ===============================================
+# what to save the new file as.
+#new_leri_name <- paste(tools::file_path_sans_ext(filenames[1]), "epsg5070_crop.tif", sep = "_")
+new_leri_name <- paste(tools::file_path_sans_ext(filenames[1]))
 
 #[1] is just an example. can easily generalize this to a loop if we want all files, but might take a while (maybe foreach loop like reprject_clip?)
 #downloads all the files into a temp location
-leri_filepath <- paste(tempdir(), filenames[1], sep = '/')
+
 leri_filepath <- file.path(tempdir(), filenames[1])
 utils::download.file(paste0(url, filenames[1]), destfile = leri_filepath)
 
-# We use raster stack to get it in same format as the eddi data
+# get it in a stack instead of a layer just to match format with eddi data
 leri_data <- raster::stack(leri_filepath)
 #file.remove(leri_filepath)
-leri_data@layers[[1]]@data@names <- new_name
 
+#this name doesn't stick, since projectRaster goes back to the filename source to get the name.
+leri_data@layers[[1]]@data@names <- new_leri_name
+
+### End of what can be looped ==================================================
 
 #https://climatedataguide.ucar.edu/climate-data/standardized-precipitation-index-spi
 #???
@@ -86,8 +96,15 @@ domain_shapefile <- sf::st_read(domain_shapefile_path) %>%
 
 stack_list <- list(eddi_data, leri_data)
 
-###########TOODO::: projectRaster is losingt the name, so we gotta figure this out. maybe do eddi and leri separate?
-stack_list_epsg <- purrr::map(stack_list, ~raster::projectRaster(.x, crs = "+init=epsg:5070"))
+#' Function to project raster to coordinate system EPSG:5070, and name the projected raster with the old name
+#' @param rast is a RasterStack with only 1 layer
+#' @return A rasterLayer, projected onto CRS EPSG:5070
+project_and_name <- function(rast){
+  projected <- raster::projectRaster(rast, crs = "+init=epsg:5070")
+  projected@data@names <- rast@layers[[1]]@data@names
+  projected
+}
+stack_list_epsg <- purrr::map(stack_list, ~project_and_name(.x))
 
 # Step 2. Crop them all to the boundary shape via masking ================================================================
 
@@ -105,7 +122,7 @@ template <- stack_list_cropped[[which.min(pixel_area_list)]]
 # Step 4. Match resolution/match extent even closer between the stacks and the template ====================================
 
 stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, template,
-                                                                       filename = paste(type, date, "EPSG5070_cropped.tif", sep = '_'),
+                                                                       filename = paste(.x@data@names, "EPSG5070_cropped.tif", sep = '_'),
                                                                        format = "GTiff", overwrite=TRUE, options="COMPRESS=LZW")
                                  )
 
@@ -120,7 +137,7 @@ stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, templ
 
 
 
-
+#### Deprecated =================================================================
 
 #############################################
 
