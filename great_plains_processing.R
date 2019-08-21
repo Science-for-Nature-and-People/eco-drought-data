@@ -8,6 +8,8 @@ library(RCurl)
 library(eddi) # a datasource
 library(dplyr)
 library(googledrive)
+library(doParallel)
+registerDoParallel(6)
 
 #using this tutorial as reference
 #https://rpubs.com/ricardo_ochoa/416711
@@ -85,15 +87,14 @@ domain_shapefile <- sf::st_read(domain_shapefile_path) %>%
 
 #plot(domain_shapefile$geometry)
 
+
 #############################################
 
 ### get rasters all in same format? ###
 
 #############################################
 
-# Step 1. Put the rasters in a list and convert them to a consistent coordinate system (EPSG 5070) ======================
-  # note: we might need to split this up to do eddi data separately from leri
-
+#put all the raster stacks into a list
 stack_list <- list(eddi_data, leri_data)
 
 #' Function to project raster to coordinate system EPSG:5070, and name the projected raster with the old name
@@ -104,40 +105,85 @@ project_and_name <- function(rast){
   projected@data@names <- rast@layers[[1]]@data@names
   projected
 }
-stack_list_epsg <- purrr::map(stack_list, ~project_and_name(.x))
-
-# Step 2. Crop them all to the boundary shape via masking ================================================================
-
-stack_list_cropped <- purrr::map(stack_list_epsg, ~raster::mask(.x, domain_shapefile) %>%
-                                  raster::crop(raster::extent(domain_shapefile))
-                                 )
-
-
-# Step 3. Pick the one with finest resolution (this is our template, which we will use to match resolution/extent) ========
-
-pixel_area_list <- purrr::map(stack_list_cropped, ~ prod(raster::res(.x)))
-template <- stack_list_cropped[[which.min(pixel_area_list)]]
-
-
-# Step 4. Match resolution/match extent even closer between the stacks and the template ====================================
-
-stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, template,
-                                                                       filename = paste(.x@data@names, "EPSG5070_cropped.tif", sep = '_'),
-                                                                       format = "GTiff", overwrite=TRUE, options="COMPRESS=LZW")
-                                 )
 
 
 
+##### New step 1: Check resolution first
+compare_proj_datum <- function(rast1, rast2){
+  proj1 <- rast1@crs@projargs %>%
+    stringr::str_extract("\\+proj=\\w+")
+  proj2 <- rast2@crs@projargs %>%
+    stringr::str_extract("\\+proj=\\w+")
+  
+  datum1 <- rast1@crs@projargs %>%
+    stringr::str_extract("\\+datum=\\w+")
+  datum2 <- rast2@crs@projargs %>%
+    stringr::str_extract("\\+datum=\\w+")
+  
+  (proj1 == proj2) & (datum1 == datum2)
+}
+
+if(purrr::reduce(stack_list, compare_proj_datum)){
+  pixel_area_list <- purrr::map(stack_list, ~ prod(raster::res(.x)))
+  template_raw <- stack_list[[which.min(pixel_area_list)]]
+} else {
+  stop('check proj/datums')
+}
+
+#### New step 2: project and crop the template
+template_cropped <- template_raw %>%
+  project_and_name() %>%
+  raster::crop(raster::extent(domain_shapefile)) %>%
+  raster::mask(domain_shapefile)
 
 
-
-
+### New step 3: reproject everything to the template
+foreach::foreach(i=1:length(stack_list)) %dopar% {
+  raster::projectRaster(stack_list[[i]], template_cropped,
+                        filename = paste(stack_list[[i]]@layers[[1]]@data@names, "EPSG5070_cropped.tif", sep = '_'),
+                        format = "GTiff", overwrite=TRUE, options="COMPRESS=LZW")
+}
 
 
 
 
 
 #### Deprecated =================================================================
+
+#############################################
+
+### get rasters all in same format? ###
+
+#############################################
+
+# Step 1. Put the rasters in a list and convert them to a consistent coordinate system (EPSG 5070) ======================
+# note: we might need to split this up to do eddi data separately from leri
+
+
+# stack_list_epsg <- purrr::map(stack_list, ~project_and_name(.x))
+# 
+# # Step 2. Crop them all to the boundary shape via masking ================================================================
+# 
+
+# stack_list_cropped <- purrr::map(stack_list_epsg, ~raster::crop(.x, raster::extent(domain_shapefile)) %>%
+#                                     raster::mask(domain_shapefile)
+# )
+# 
+# 
+# # Step 3. Pick the one with finest resolution (this is our template, which we will use to match resolution/extent) ========
+# 
+# pixel_area_list <- purrr::map(stack_list_cropped, ~ prod(raster::res(.x)))
+# template <- stack_list_cropped[[which.min(pixel_area_list)]]
+# 
+# 
+# # Step 4. Match resolution/match extent even closer between the stacks and the template ====================================
+# 
+# stack_list_uniform <- purrr::map(stack_list_cropped, ~raster::resample(.x, template,
+#                                                                        filename = paste(.x@data@names, "EPSG5070_cropped.tif", sep = '_'),
+#                                                                        format = "GTiff", overwrite=TRUE, options="COMPRESS=LZW")
+#                                  )
+# 
+
 
 #############################################
 
