@@ -7,6 +7,9 @@ library(sf)
 library(RCurl)
 library(eddi) # a datasource
 library(dplyr)
+library(purrr)
+library(stringr)
+library(lubridate)
 library(googledrive)
 library(doParallel)
 registerDoParallel(6)
@@ -20,34 +23,50 @@ registerDoParallel(6)
 ### reading in raster files ###
 
 #############################################
-#https://www.earthdatascience.org/eddi/index.html
-#date and timescale are examples. are easily translated to a function/loop
+
+### Read in EDDI Data (https://www.earthdatascience.org/eddi/index.html) ==========================================================
+
+## Single case (for simple, easily runnable example) ------------------------------------
+
 eddi_data <- eddi::get_eddi(date = '2018-01-01', timescale = '1 month') 
-#new_eddi_name <- paste(eddi_data@layers[[1]]@data@names, "epsg5070_crop.tif", sep = "_")
 
 
-# # Format the name of the layer to just contain the type (EDDI) and date. This will be the base for the saved filename
-# # This is a bit overly complicated because eddi data returns single layer rasterstack, instead of a raster layer
-# eddi_data@layers[[1]]@data@names <- stringr::str_replace(eddi_data@layers[[1]]@data@names, '_\\w+mn', '')
+## Function to read in many -----------------------------------------------------------
 
-#https://esrl.noaa.gov/psd/leri/#archive
-  # try to read direct from ftp
+#' Read in monthly EDDI data. 
+#' @param year is a string/int with the desired start year. Data is availble since 1980, but we default to 2000 to match with LERI data
+#' @param scale see the timescale argument in the `eddi::get_eddi()`. Default to 1 month. note LERI data only has 1 month, 3 month, 12 months
+#' @return A list of single-layer raster stacks, with each element representing a month starting from `year` to the latest full month
+getMonthlyEDDI <- function(year = 2000, scale = '1 month'){
+  if(nchar(year) != 4 | year < 1980 | year > lubridate::year(today())){
+    stop('Year must be 4 digits')
+  }
+  start <- paste(year, "01", "01", sep = "-") %>% ymd()
+  #for some reason, they don't let you put in 01/01/1980, so we add a day. hopefully 1/1/1980 wasn't a crazy day
+  if(year == 1980){
+    start <- start + days(1)
+  }
+  # Subtract a month from the end to make sure data is available
+  end <- lubridate::today() - months(1)
+  dates <- seq(start,end, by = '1 month')
+  
+  map(dates, ~eddi::get_eddi(date = .x, timescale = scale))
+}
+
+
+### Read in LERI Data (https://esrl.noaa.gov/psd/leri/#archive) ==========================================================
+
+## Single case (for simple, easily runnable example) ----------------------------------
+
 url <- 'ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/2019/'
 filenames <- RCurl::getURL(url, ftp.use.epsv = FALSE, dirlistonly = TRUE) %>%
   stringr::str_split('\n') %>% 
   unlist()
 
-
-
-
-### This chunk can be put into a loop? ===============================================
-# what to save the new file as.
-#new_leri_name <- paste(tools::file_path_sans_ext(filenames[1]), "epsg5070_crop.tif", sep = "_")
+# what to save the new file as
 new_leri_name <- paste(tools::file_path_sans_ext(filenames[1]))
 
-#[1] is just an example. can easily generalize this to a loop if we want all files, but might take a while (maybe foreach loop like reprject_clip?)
-#downloads all the files into a temp location
-
+#downloads file into a temp location
 leri_filepath <- file.path(tempdir(), filenames[1])
 utils::download.file(paste0(url, filenames[1]), destfile = leri_filepath)
 
@@ -55,13 +74,81 @@ utils::download.file(paste0(url, filenames[1]), destfile = leri_filepath)
 leri_data <- raster::stack(leri_filepath)
 #file.remove(leri_filepath)
 
-#this name doesn't stick, since projectRaster goes back to the filename source to get the name.
-leri_data@layers[[1]]@data@names <- new_leri_name
 
-### End of what can be looped ==================================================
 
-#https://climatedataguide.ucar.edu/climate-data/standardized-precipitation-index-spi
+## Functions to read in many -----------------------------------------------------------
+
+# It doesn't look like it would be any faster to parallelize ftp downloads, since the network bandwidthi is the limiting factor
+# See for a possible alternative: https://stackoverflow.com/questions/16783551/downloading-multiple-file-as-parallel-in-r
+ 
+#' Take a filename for a raster layer and read it into R as a stack
+#' 
+#' this is mostly just a helper function for getLERI
+#' @param filename is a string containing a raster's full path 
+filenameToStack <- function(filepath){
+  filename <- filepath %>%
+    basename %>%
+    tools::file_path_sans_ext()
+  path <- file.path(tempdir(), filename)
+  utils::download.file(filepath, destfile = path)
+  rast <- raster::stack(path)
+  rast@layers[[1]]@data@names <- filename
+  
+  # The newer leri rasters (eg all in 2019) have a crs. the older ones don't. But I suspect the extent is the same between all of them.
+    # This is the extent (in matrix form) of one form 2019. If the extent of each raster is the same as this, I'll set the crs to be the same
+    # It's in matrix form since I couldn't find a way to compare Extent objects (identical and == didn't work)
+  recent_leri_extent <- structure(c(-126.009, 23.949, -66.456, 49.545), 
+                                  .Dim = c(2L, 2L), 
+                                  .Dimnames = list(c("x", "y"), c("min", "max")))
+  recent_leri_crs <- "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"
+  
+  if(identical(as.matrix(rast@layers[[1]]@extent), recent_leri_extent)){
+    rast@crs@projargs <- recent_leri_crs
+  }
+  
+  rast
+}
+
+#' Download and read in leri files as a list of raster stacks
+#' @param year is a specific year we want data for. min is 2000, max is 2019 (But 2019 doesn't have 12 mn data). default is NULL (download all)
+#' @param scale is the timescale we want for each raster. options are "1 month", "3 month", "7 month", and "12 month"
+getLERI <- function(year = NULL, scale = ""){
+  if(!is.null(year)){
+    url <- paste0('ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/', year, '/')
+  } else {
+    all_years <- 2000:2019
+    url <- map_chr(all_years, ~paste0('ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/', .x, '/'))
+  }
+  
+  if(!(scale %in% c("1 month", "3 month", "7 month", "12 month", ""))){
+    stop('scale must be "1 month", "3 month", or "12 month", or empty string')
+  } 
+  timescale <- scale %>%
+    str_replace("month", "mn") %>%
+    str_remove(" ")
+  
+  # create a list, where each element is a character vector of filepaths corresponding to a year
+  filenames <- map(url, ~RCurl::getURL(url = .x, ftp.use.epsv = FALSE, dirlistonly = TRUE) %>%
+                     stringr::str_split('\n') %>% 
+                     unlist() %>%
+                     setdiff("") %>%
+                     paste0(.x, .) %>%
+                     stringr:str_subset(timescale)
+                
+  )
+  
+  #filenameToStack works on individual filenames, but filenames is a list of vectors. map_depth lets us get the individual filenames                       
+  map_depth(filenames, 2, ~filenameToStack(.x))
+}
+
+
+
+
+### Read in SPI Data (https://climatedataguide.ucar.edu/climate-data/standardized-precipitation-index-spi) ==========================================================
 #???
+
+
+
 
 
 
@@ -88,14 +175,27 @@ domain_shapefile <- sf::st_read(domain_shapefile_path) %>%
 #plot(domain_shapefile$geometry)
 
 
+
+
+
+
+
 #############################################
 
-### get rasters all in same format? ###
+### get rasters all in same format ###
 
 #############################################
 
 #put all the raster stacks into a list
 stack_list <- list(eddi_data, leri_data)
+
+
+### this code generates stack_list, but on EVERYTHING (and will take forever)
+
+# full_leri <- getLERI() %>%
+#   unlist
+# full_eddi <- getMonthlyEDDI()
+# stack_list <- c(full_leri, full_eddi)
 
 #' Function to project raster to coordinate system EPSG:5070, and name the projected raster with the old name
 #' @param rast is a RasterStack with only 1 layer
@@ -108,7 +208,10 @@ project_and_name <- function(rast){
 
 
 
-##### New step 1: Check resolution first
+##### Step 1: Check resolution first
+#' Check that resolutions are comparable between two rasters
+#' @param rast are rasters (stack or layer). 
+#' @return TRUE/FALSE depending on whether the proj and datum match or not
 compare_proj_datum <- function(rast1, rast2){
   proj1 <- rast1@crs@projargs %>%
     stringr::str_extract("\\+proj=\\w+")
@@ -123,6 +226,7 @@ compare_proj_datum <- function(rast1, rast2){
   (proj1 == proj2) & (datum1 == datum2)
 }
 
+# Checking a few values of each, we're pretty sure the proj/datums match. but we make sure
 if(purrr::reduce(stack_list, compare_proj_datum)){
   pixel_area_list <- purrr::map(stack_list, ~ prod(raster::res(.x)))
   template_raw <- stack_list[[which.min(pixel_area_list)]]
@@ -130,14 +234,14 @@ if(purrr::reduce(stack_list, compare_proj_datum)){
   stop('check proj/datums')
 }
 
-#### New step 2: project and crop the template
+#### Step 2: project and crop the template
 template_cropped <- template_raw %>%
   project_and_name() %>%
   raster::crop(raster::extent(domain_shapefile)) %>%
   raster::mask(domain_shapefile)
 
 
-### New step 3: reproject everything to the template
+### Step 3: reproject everything to the template
 foreach::foreach(i=1:length(stack_list)) %dopar% {
   raster::projectRaster(stack_list[[i]], template_cropped,
                         filename = paste(stack_list[[i]]@layers[[1]]@data@names, "EPSG5070_cropped.tif", sep = '_'),
