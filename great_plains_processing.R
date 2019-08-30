@@ -48,7 +48,8 @@ getMonthlyEDDI <- function(year = 2000, scale = '1 month'){
   }
   # Subtract a month from the end to make sure data is available
   end <- lubridate::today() - months(1)
-  dates <- seq(start,end, by = '1 month')
+  
+  dates <- seq(start,end, by = scale)
   
   map(dates, ~eddi::get_eddi(date = .x, timescale = scale))
 }
@@ -85,12 +86,18 @@ leri_data <- raster::stack(leri_filepath)
 #' 
 #' this is mostly just a helper function for getLERI
 #' @param filename is a string containing a raster's full path 
-filenameToStack <- function(filepath){
+filenameToStack <- function(filepath, destpath = tempdir()){
+  # get the file name
   filename <- filepath %>%
     basename %>%
     tools::file_path_sans_ext()
-  path <- file.path(tempdir(), filename)
+  
+  # download file to destpath
+  path <- file.path(destpath, filename)
   utils::download.file(filepath, destfile = path)
+  
+  # make a single layer raster stack, with the layer's name == filename
+    # we use raster stack to match eddi data format.
   rast <- raster::stack(path)
   rast@layers[[1]]@data@names <- filename
   
@@ -112,7 +119,7 @@ filenameToStack <- function(filepath){
 #' Download and read in leri files as a list of raster stacks
 #' @param year is a specific year we want data for. min is 2000, max is 2019 (But 2019 doesn't have 12 mn data). default is NULL (download all)
 #' @param scale is the timescale we want for each raster. options are "1 month", "3 month", "7 month", and "12 month"
-getLERI <- function(year = NULL, scale = ""){
+getLERI <- function(year = NULL, scale = "", destpath = tempdir()){
   if(!is.null(year)){
     url <- paste0('ftp://ftp.cdc.noaa.gov/Projects/LERI/CONUS_archive/data/', year, '/')
   } else {
@@ -138,7 +145,7 @@ getLERI <- function(year = NULL, scale = ""){
   )
   
   #filenameToStack works on individual filenames, but filenames is a list of vectors. map_depth lets us get the individual filenames                       
-  map_depth(filenames, 2, ~filenameToStack(.x))
+  map_depth(filenames, 2, ~filenameToStack(.x, destpath = destpath))
 }
 
 
